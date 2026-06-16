@@ -68,7 +68,8 @@
       dragging: false,
       lastX: 0,
       lastY: 0,
-      lastTime: performance.now()
+      lastTime: performance.now(),
+      lastDraw: 0
     };
 
     const pins = [
@@ -81,9 +82,67 @@
       { lat: 51.5072, lon: -0.1276 }
     ];
 
+    const landMasses = [
+      [
+        { lat: 58, lon: -168 }, { lat: 70, lon: -132 }, { lat: 62, lon: -92 },
+        { lat: 50, lon: -62 }, { lat: 30, lon: -82 }, { lat: 16, lon: -104 },
+        { lat: 27, lon: -122 }, { lat: 46, lon: -128 }
+      ],
+      [
+        { lat: 13, lon: -82 }, { lat: 5, lon: -64 }, { lat: -16, lon: -54 },
+        { lat: -34, lon: -62 }, { lat: -54, lon: -70 }, { lat: -28, lon: -78 },
+        { lat: -4, lon: -78 }
+      ],
+      [
+        { lat: 72, lon: -22 }, { lat: 66, lon: 42 }, { lat: 45, lon: 74 },
+        { lat: 34, lon: 42 }, { lat: 52, lon: 10 }, { lat: 38, lon: -10 },
+        { lat: 55, lon: -22 }
+      ],
+      [
+        { lat: 32, lon: -18 }, { lat: 34, lon: 35 }, { lat: 12, lon: 50 },
+        { lat: -34, lon: 28 }, { lat: -28, lon: 6 }, { lat: 2, lon: -18 }
+      ],
+      [
+        { lat: 58, lon: 62 }, { lat: 70, lon: 110 }, { lat: 54, lon: 154 },
+        { lat: 34, lon: 142 }, { lat: 12, lon: 104 }, { lat: 7, lon: 78 },
+        { lat: 28, lon: 58 }
+      ],
+      [
+        { lat: -10, lon: 112 }, { lat: -20, lon: 154 }, { lat: -42, lon: 145 },
+        { lat: -36, lon: 112 }
+      ]
+    ];
+
+    const graticules = [];
+    for (let lat = -60; lat <= 60; lat += 20) {
+      const points = [];
+      for (let lon = -180; lon <= 180; lon += 4) points.push({ lat, lon });
+      graticules.push(points);
+    }
+    for (let lon = -180; lon < 180; lon += 20) {
+      const points = [];
+      for (let lat = -84; lat <= 84; lat += 4) points.push({ lat, lon });
+      graticules.push(points);
+    }
+
+    function greatCircle(from, to, steps = 46) {
+      const out = [];
+      for (let i = 0; i <= steps; i += 1) {
+        const t = i / steps;
+        out.push({
+          lat: from.lat + (to.lat - from.lat) * t + Math.sin(t * Math.PI) * 18,
+          lon: from.lon + (to.lon - from.lon) * t
+        });
+      }
+      return out;
+    }
+
+    const routes = pins.slice(1).map((pin) => greatCircle(pins[0], pin));
+    const targetFrameMs = prefersReducedMotion ? 1000 : 1000 / 45;
+
     function resize() {
       const box = canvas.getBoundingClientRect();
-      const size = Math.max(280, Math.floor(Math.min(box.width, box.height)));
+      const size = Math.max(220, Math.floor(Math.min(box.width, box.height)));
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(size * dpr);
       canvas.height = Math.floor(size * dpr);
@@ -134,20 +193,31 @@
       ctx.stroke();
     }
 
-    function greatCircle(from, to, steps = 56) {
-      const out = [];
-      for (let i = 0; i <= steps; i += 1) {
-        const t = i / steps;
-        out.push({
-          lat: from.lat + (to.lat - from.lat) * t + Math.sin(t * Math.PI) * 18,
-          lon: from.lon + (to.lon - from.lon) * t
-        });
-      }
-      return out;
+    function drawLand(points, radius, cx, cy) {
+      const projected = points.map((point) => project(point.lat, point.lon, radius, cx, cy)).filter((point) => point.z > -0.05);
+      if (projected.length < 3) return;
+
+      ctx.beginPath();
+      projected.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = "rgba(218, 255, 195, 0.66)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.44)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
 
     function draw(now) {
+      if (now - state.lastDraw < targetFrameMs) {
+        requestAnimationFrame(draw);
+        return;
+      }
+
       const elapsed = Math.min(40, now - state.lastTime);
+      state.lastDraw = now;
       state.lastTime = now;
       if (!state.dragging && !prefersReducedMotion) {
         state.rotationY += elapsed * 0.00016;
@@ -161,8 +231,9 @@
       ctx.clearRect(0, 0, size, size);
 
       const halo = ctx.createRadialGradient(cx - radius * 0.25, cy - radius * 0.28, radius * 0.1, cx, cy, radius * 1.28);
-      halo.addColorStop(0, "rgba(255,255,255,0.88)");
-      halo.addColorStop(0.5, "rgba(255,255,255,0.32)");
+      halo.addColorStop(0, "rgba(246,255,249,0.95)");
+      halo.addColorStop(0.48, "rgba(68,206,184,0.24)");
+      halo.addColorStop(0.78, "rgba(0,114,120,0.16)");
       halo.addColorStop(1, "rgba(0,138,120,0)");
       ctx.fillStyle = halo;
       ctx.beginPath();
@@ -170,9 +241,11 @@
       ctx.fill();
 
       const body = ctx.createRadialGradient(cx - radius * 0.34, cy - radius * 0.4, radius * 0.1, cx, cy, radius);
-      body.addColorStop(0, "#ffffff");
-      body.addColorStop(0.58, "#f8f6ef");
-      body.addColorStop(1, "#dad6cb");
+      body.addColorStop(0, "#fbfff7");
+      body.addColorStop(0.24, "#bdf7df");
+      body.addColorStop(0.58, "#46cbb8");
+      body.addColorStop(0.84, "#138887");
+      body.addColorStop(1, "#0b4252");
       ctx.fillStyle = body;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -183,45 +256,52 @@
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.clip();
 
-      for (let lat = -60; lat <= 60; lat += 20) {
-        const points = [];
-        for (let lon = -180; lon <= 180; lon += 4) points.push({ lat, lon });
-        drawLine(points, radius, cx, cy, "rgba(16,18,17,0.16)", 1);
+      const oceanSheen = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
+      oceanSheen.addColorStop(0, "rgba(255,255,255,0.35)");
+      oceanSheen.addColorStop(0.42, "rgba(150,255,226,0.16)");
+      oceanSheen.addColorStop(1, "rgba(2,45,68,0.22)");
+      ctx.fillStyle = oceanSheen;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+      for (const land of landMasses) {
+        drawLand(land, radius, cx, cy);
       }
 
-      for (let lon = -180; lon < 180; lon += 20) {
-        const points = [];
-        for (let lat = -84; lat <= 84; lat += 4) points.push({ lat, lon });
-        drawLine(points, radius, cx, cy, "rgba(16,18,17,0.13)", 1);
+      for (const line of graticules) {
+        drawLine(line, radius, cx, cy, "rgba(243,255,247,0.34)", 1);
       }
 
-      for (let i = 1; i < pins.length; i += 1) {
-        drawLine(greatCircle(pins[0], pins[i]), radius, cx, cy, "rgba(0,138,120,0.26)", 1.6);
+      for (const route of routes) {
+        drawLine(route, radius, cx, cy, "rgba(212,255,236,0.64)", 1.8);
       }
 
       for (const pin of pins) {
         const p = project(pin.lat, pin.lon, radius, cx, cy);
         if (p.z > 0) {
           const scale = 0.72 + p.z * 0.36;
-          ctx.fillStyle = "rgba(0,138,120,0.95)";
+          ctx.fillStyle = "rgba(247,255,198,0.96)";
           ctx.beginPath();
           ctx.arc(p.x, p.y, 4.6 * scale, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = "rgba(255,255,255,0.92)";
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = "rgba(0,103,98,0.8)";
+          ctx.lineWidth = 1.6;
           ctx.stroke();
         }
       }
 
       ctx.restore();
 
-      ctx.strokeStyle = "rgba(16,18,17,0.28)";
+      const rim = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
+      rim.addColorStop(0, "rgba(255,255,255,0.9)");
+      rim.addColorStop(0.52, "rgba(106,232,207,0.6)");
+      rim.addColorStop(1, "rgba(3,58,72,0.55)");
+      ctx.strokeStyle = rim;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.strokeStyle = "rgba(0,138,120,0.2)";
+      ctx.strokeStyle = "rgba(194,255,231,0.46)";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.ellipse(cx, cy, radius * 1.08, radius * 0.16, -0.2, 0, Math.PI * 2);

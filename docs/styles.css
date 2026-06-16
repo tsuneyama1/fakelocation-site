@@ -22,8 +22,9 @@ body {
 
 body {
   background:
-    radial-gradient(circle at 72% 18%, rgba(0, 138, 120, 0.16), transparent 26rem),
-    linear-gradient(135deg, #fbfaf6 0%, var(--bg) 46%, #ece8dd 100%);
+    radial-gradient(circle at 74% 24%, rgba(0, 138, 120, 0.2), transparent 22rem),
+    radial-gradient(circle at 18% 80%, rgba(108, 186, 164, 0.18), transparent 24rem),
+    linear-gradient(135deg, #fbfaf6 0%, var(--bg) 48%, #e9e4d9 100%);
   color: var(--ink);
 }
 
@@ -39,6 +40,7 @@ input {
 
 .shell {
   min-height: 100vh;
+  min-height: 100svh;
 }
 
 .sr-only {
@@ -147,9 +149,11 @@ input {
 }
 
 .site {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100svh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
   opacity: 0;
   visibility: hidden;
 }
@@ -162,7 +166,7 @@ input {
 .topbar {
   width: min(100% - 40px, 1180px);
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 18px 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -190,11 +194,12 @@ input {
 .hero {
   width: min(100% - 40px, 1180px);
   margin: 0 auto;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+  grid-template-columns: minmax(0, 0.98fr) minmax(300px, 1.02fr);
   align-items: center;
-  gap: clamp(24px, 5vw, 76px);
-  padding: 20px 0 36px;
+  gap: clamp(20px, 4svh, 56px);
+  padding: 0;
 }
 
 .copy {
@@ -205,20 +210,20 @@ input {
 .copy h1 {
   max-width: 740px;
   margin: 0;
-  font-size: clamp(3.1rem, 8.4vw, 7.9rem);
-  line-height: 0.9;
+  font-size: clamp(4.4rem, 9.4svh, 7rem);
+  line-height: 0.91;
   letter-spacing: 0;
 }
 
 .country-row {
-  min-height: 3.2rem;
-  margin: 28px 0 0;
+  min-height: 2.5rem;
+  margin: 20px 0 0;
   display: flex;
   align-items: baseline;
   gap: 12px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: clamp(1rem, 2.2vw, 1.45rem);
+  font-size: 1.25rem;
 }
 
 .country-prefix {
@@ -247,7 +252,7 @@ input {
 
 .globe-stage {
   position: relative;
-  width: min(100%, 620px);
+  width: min(100%, 54svh, 560px);
   aspect-ratio: 1;
   justify-self: end;
   display: grid;
@@ -257,10 +262,11 @@ input {
 .globe-stage::before {
   content: "";
   position: absolute;
-  inset: 9%;
+  inset: 5%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
-  filter: blur(26px);
+  background:
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.72), rgba(91, 201, 181, 0.3) 48%, rgba(0, 111, 106, 0.1) 70%, transparent 78%);
+  filter: blur(20px);
 }
 
 #globe {
@@ -280,26 +286,27 @@ input {
 .note {
   width: min(100% - 40px, 1180px);
   margin: 0 auto;
-  padding: 0 0 22px;
+  padding: 8px 0 14px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
 }
 
 @media (max-width: 860px) {
   .hero {
     grid-template-columns: 1fr;
-    align-items: start;
-    padding-top: 8px;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
   }
 
   .copy h1 {
-    font-size: clamp(3rem, 14vw, 5.8rem);
+    max-width: 620px;
+    font-size: clamp(3.2rem, 8.6svh, 5.15rem);
   }
 
   .globe-stage {
-    width: min(100%, 520px);
+    width: min(100%, 42svh, 440px);
     justify-self: center;
-    margin-top: -14px;
   }
 }
 
@@ -317,8 +324,8 @@ input {
   }
 
   .download-button {
-    min-height: 42px;
-    padding: 0 14px;
+    min-height: 40px;
+    padding: 0 13px;
   }
 
   .hero,
@@ -327,11 +334,24 @@ input {
   }
 
   .copy h1 {
-    font-size: clamp(2.8rem, 14.6vw, 4.6rem);
+    font-size: clamp(2.75rem, 8.2svh, 4.25rem);
+    line-height: 0.93;
   }
 
   .country-row {
-    margin-top: 22px;
+    min-height: 2rem;
+    margin-top: 14px;
+    font-size: 1.05rem;
+    gap: 8px;
+  }
+
+  .globe-stage {
+    width: min(100%, 35svh, 330px);
+  }
+
+  .note {
+    padding-bottom: 10px;
+    font-size: 0.7rem;
   }
 
   .gate-panel {
