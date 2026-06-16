@@ -135,7 +135,7 @@
     }
 
     function ensureSurface(size) {
-      const nextSize = Math.max(150, Math.min(210, Math.round(size * 0.42)));
+      const nextSize = Math.max(128, Math.min(170, Math.round(size * 0.34)));
       if (surface.size === nextSize) return;
 
       surface.size = nextSize;
@@ -230,7 +230,7 @@
     }
 
     const routes = pins.slice(1).map((pin) => greatCircle(pins[0], pin));
-    const targetFrameMs = prefersReducedMotion ? 1000 : 1000 / 45;
+    const targetFrameMs = prefersReducedMotion ? 1000 : 1000 / 30;
 
     function resize() {
       const box = canvas.getBoundingClientRect();
