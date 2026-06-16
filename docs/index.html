@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Fake Location for Windows helps test location-aware apps with simulated coordinates.">
+    <title>Fake Location</title>
+    <link rel="icon" href="assets/FakeLocation.ico">
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell" aria-label="Fake Location landing page">
+      <section class="gate" id="gate" aria-labelledby="gate-title">
+        <div class="gate-panel">
+          <img class="gate-logo" src="assets/FakeLocation.jpg" alt="" width="56" height="56">
+          <p class="eyebrow">Private Preview</p>
+          <h1 id="gate-title">Enter Access Code</h1>
+          <form id="gate-form" class="gate-form" autocomplete="off">
+            <label class="sr-only" for="password">Password</label>
+            <input id="password" name="password" type="password" inputmode="numeric" placeholder="Password" aria-describedby="gate-error" autofocus>
+            <button type="submit">Unlock</button>
+          </form>
+          <p class="gate-error" id="gate-error" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="site" id="site" aria-hidden="true">
+        <header class="topbar" aria-label="Site header">
+          <a class="brand" href="#" aria-label="Fake Location home">
+            <img src="assets/FakeLocation.jpg" alt="" width="32" height="32">
+            <span>Fake Location</span>
+          </a>
+          <a class="download-button" id="download-link" href="https://github.com/tsuneyama1/fakelocation-site/releases/latest/download/FakeLocationSetup.exe">
+            Download
+          </a>
+        </header>
+
+        <div class="hero">
+          <section class="copy" aria-labelledby="hero-title">
+            <p class="eyebrow">Windows Location Testing</p>
+            <h1 id="hero-title">Fake Your Location to Any Corner of the World</h1>
+            <p class="country-row">
+              <span class="country-prefix">Now targeting</span>
+              <span class="country-name" id="country-name">Japan</span>
+            </p>
+          </section>
+
+          <section class="globe-stage" aria-label="Interactive spinning globe">
+            <canvas id="globe" width="720" height="720"></canvas>
+          </section>
+        </div>
+
+        <footer class="note">
+          Built for Windows location-stack testing. It does not change IP-based location, VPN region, or browser-only overrides.
+        </footer>
+      </section>
+    </main>
+    <script src="main.js" defer></script>
+  </body>
+</html>
