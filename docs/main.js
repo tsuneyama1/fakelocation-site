@@ -82,36 +82,128 @@
       { lat: 51.5072, lon: -0.1276 }
     ];
 
-    const landMasses = [
-      [
-        { lat: 58, lon: -168 }, { lat: 70, lon: -132 }, { lat: 62, lon: -92 },
-        { lat: 50, lon: -62 }, { lat: 30, lon: -82 }, { lat: 16, lon: -104 },
-        { lat: 27, lon: -122 }, { lat: 46, lon: -128 }
-      ],
-      [
-        { lat: 13, lon: -82 }, { lat: 5, lon: -64 }, { lat: -16, lon: -54 },
-        { lat: -34, lon: -62 }, { lat: -54, lon: -70 }, { lat: -28, lon: -78 },
-        { lat: -4, lon: -78 }
-      ],
-      [
-        { lat: 72, lon: -22 }, { lat: 66, lon: 42 }, { lat: 45, lon: 74 },
-        { lat: 34, lon: 42 }, { lat: 52, lon: 10 }, { lat: 38, lon: -10 },
-        { lat: 55, lon: -22 }
-      ],
-      [
-        { lat: 32, lon: -18 }, { lat: 34, lon: 35 }, { lat: 12, lon: 50 },
-        { lat: -34, lon: 28 }, { lat: -28, lon: 6 }, { lat: 2, lon: -18 }
-      ],
-      [
-        { lat: 58, lon: 62 }, { lat: 70, lon: 110 }, { lat: 54, lon: 154 },
-        { lat: 34, lon: 142 }, { lat: 12, lon: 104 }, { lat: 7, lon: 78 },
-        { lat: 28, lon: 58 }
-      ],
-      [
-        { lat: -10, lon: 112 }, { lat: -20, lon: 154 }, { lat: -42, lon: 145 },
-        { lat: -36, lon: 112 }
-      ]
+    const landBlobs = [
+      { lat: 48, lon: -104, latRadius: 28, lonRadius: 48, tilt: -0.48, seed: 1.1 },
+      { lat: -18, lon: -62, latRadius: 34, lonRadius: 24, tilt: 0.32, seed: 2.7 },
+      { lat: 50, lon: 24, latRadius: 24, lonRadius: 38, tilt: -0.18, seed: 4.2 },
+      { lat: 8, lon: 20, latRadius: 36, lonRadius: 29, tilt: -0.08, seed: 6.3 },
+      { lat: 44, lon: 102, latRadius: 33, lonRadius: 57, tilt: 0.16, seed: 8.4 },
+      { lat: -25, lon: 134, latRadius: 18, lonRadius: 28, tilt: 0.18, seed: 9.9 }
     ];
+
+    const surface = {
+      canvas: document.createElement("canvas"),
+      ctx: null,
+      image: null,
+      size: 0
+    };
+    surface.ctx = surface.canvas.getContext("2d", { alpha: true });
+
+    function clamp(value, min = 0, max = 1) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function mix(from, to, amount) {
+      return from + (to - from) * amount;
+    }
+
+    function smoothNoise(x, y, seed) {
+      return Math.sin(x * 7.1 + seed) * 0.08 + Math.cos(y * 8.6 - seed) * 0.07 + Math.sin((x + y) * 12.4 + seed) * 0.05;
+    }
+
+    function wrapDeltaLon(delta) {
+      return ((((delta + 180) % 360) + 360) % 360) - 180;
+    }
+
+    function landBlendAt(lat, lon) {
+      let blend = 0;
+      for (const blob of landBlobs) {
+        const cos = Math.cos(blob.tilt);
+        const sin = Math.sin(blob.tilt);
+        const localLon = wrapDeltaLon(lon - blob.lon) / blob.lonRadius;
+        const localLat = (lat - blob.lat) / blob.latRadius;
+        const x = localLon * cos + localLat * sin;
+        const y = -localLon * sin + localLat * cos;
+        const dist = Math.hypot(x, y);
+        const edge = 1 + smoothNoise(x, y, blob.seed);
+        const feather = 0.24;
+        const amount = clamp((edge - dist) / feather);
+        blend = Math.max(blend, amount * amount * (3 - 2 * amount));
+      }
+
+      return blend;
+    }
+
+    function ensureSurface(size) {
+      const nextSize = Math.max(150, Math.min(210, Math.round(size * 0.42)));
+      if (surface.size === nextSize) return;
+
+      surface.size = nextSize;
+      surface.canvas.width = nextSize;
+      surface.canvas.height = nextSize;
+      surface.image = surface.ctx.createImageData(nextSize, nextSize);
+    }
+
+    function renderSurface(size) {
+      ensureSurface(size);
+      const n = surface.size;
+      const data = surface.image.data;
+      const cosX = Math.cos(state.rotationX);
+      const sinX = Math.sin(state.rotationX);
+      let offset = 0;
+
+      for (let py = 0; py < n; py += 1) {
+        const sy = (py / (n - 1)) * 2 - 1;
+        for (let px = 0; px < n; px += 1) {
+          const sx = (px / (n - 1)) * 2 - 1;
+          const d2 = sx * sx + sy * sy;
+
+          if (d2 > 1) {
+            data[offset] = 0;
+            data[offset + 1] = 0;
+            data[offset + 2] = 0;
+            data[offset + 3] = 0;
+            offset += 4;
+            continue;
+          }
+
+          const z2 = Math.sqrt(1 - d2);
+          const y2 = -sy;
+          const worldY = y2 * cosX + z2 * sinX;
+          const worldZ = -y2 * sinX + z2 * cosX;
+          const lat = (Math.asin(clamp(worldY, -1, 1)) * 180) / Math.PI;
+          const lon = ((Math.atan2(sx, worldZ) - state.rotationY) * 180) / Math.PI;
+          const land = landBlendAt(lat, lon);
+          const edge = Math.pow(d2, 1.55);
+          const light = clamp(0.6 + z2 * 0.24 - sx * 0.22 - sy * 0.28);
+          const oceanDepth = clamp(edge * 0.82 + (1 - light) * 0.25);
+
+          let r = mix(24, 82, light) - oceanDepth * 36;
+          let g = mix(126, 221, light) - oceanDepth * 56;
+          let b = mix(137, 205, light) - oceanDepth * 58;
+
+          if (land > 0) {
+            const landLight = clamp(light + 0.08);
+            const landR = mix(170, 226, landLight);
+            const landG = mix(222, 255, landLight);
+            const landB = mix(164, 196, landLight);
+            const amount = land * 0.88;
+            r = mix(r, landR, amount);
+            g = mix(g, landG, amount);
+            b = mix(b, landB, amount);
+          }
+
+          data[offset] = clamp(Math.round(r), 0, 255);
+          data[offset + 1] = clamp(Math.round(g), 0, 255);
+          data[offset + 2] = clamp(Math.round(b), 0, 255);
+          data[offset + 3] = 255;
+          offset += 4;
+        }
+      }
+
+      surface.ctx.putImageData(surface.image, 0, 0);
+      return surface.canvas;
+    }
 
     const graticules = [];
     for (let lat = -60; lat <= 60; lat += 20) {
@@ -193,23 +285,6 @@
       ctx.stroke();
     }
 
-    function drawLand(points, radius, cx, cy) {
-      const projected = points.map((point) => project(point.lat, point.lon, radius, cx, cy)).filter((point) => point.z > -0.05);
-      if (projected.length < 3) return;
-
-      ctx.beginPath();
-      projected.forEach((point, index) => {
-        if (index === 0) ctx.moveTo(point.x, point.y);
-        else ctx.lineTo(point.x, point.y);
-      });
-      ctx.closePath();
-      ctx.fillStyle = "rgba(218, 255, 195, 0.66)";
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.44)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
     function draw(now) {
       if (now - state.lastDraw < targetFrameMs) {
         requestAnimationFrame(draw);
@@ -240,16 +315,7 @@
       ctx.arc(cx, cy, radius * 1.22, 0, Math.PI * 2);
       ctx.fill();
 
-      const body = ctx.createRadialGradient(cx - radius * 0.34, cy - radius * 0.4, radius * 0.1, cx, cy, radius);
-      body.addColorStop(0, "#fbfff7");
-      body.addColorStop(0.24, "#bdf7df");
-      body.addColorStop(0.58, "#46cbb8");
-      body.addColorStop(0.84, "#138887");
-      body.addColorStop(1, "#0b4252");
-      ctx.fillStyle = body;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.drawImage(renderSurface(size), cx - radius, cy - radius, radius * 2, radius * 2);
 
       ctx.save();
       ctx.beginPath();
@@ -263,9 +329,12 @@
       ctx.fillStyle = oceanSheen;
       ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
-      for (const land of landMasses) {
-        drawLand(land, radius, cx, cy);
-      }
+      const shine = ctx.createRadialGradient(cx - radius * 0.38, cy - radius * 0.42, 0, cx - radius * 0.25, cy - radius * 0.32, radius * 0.92);
+      shine.addColorStop(0, "rgba(255,255,236,0.34)");
+      shine.addColorStop(0.32, "rgba(236,255,226,0.14)");
+      shine.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = shine;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
       for (const line of graticules) {
         drawLine(line, radius, cx, cy, "rgba(243,255,247,0.34)", 1);
